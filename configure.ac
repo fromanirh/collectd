@@ -4899,13 +4899,16 @@ then
 fi
 # }}}
 
-# pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{
+# pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt; pkg-config --exists glib-2.0; {{{
 with_libxml2="no (pkg-config isn't available)"
 with_libxml2_cflags=""
 with_libxml2_ldflags=""
 with_libvirt="no (pkg-config isn't available)"
 with_libvirt_cflags=""
 with_libvirt_ldflags=""
+with_glib2="no (pkg-config isn't available)"
+with_glib2_cflags=""
+with_glib2_ldflags=""
 if test "x$PKG_CONFIG" != "x"
 then
 	$PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
@@ -4922,6 +4925,14 @@ then
 		with_libvirt="yes"
 	else
 		with_libvirt="no (pkg-config doesn't know libvirt)"
+	fi
+
+	$PKG_CONFIG --exists glib-2.0 2>/dev/null
+	if test "$?" = "0"
+	then
+		with_glib2="yes"
+	else
+		with_glib2="no (pkg-config doesn't know glib)"
 	fi
 fi
 if test "x$with_libxml2" = "xyes"
@@ -5014,6 +5025,52 @@ if test "x$with_libvirt" = "xyes"; then
 	AC_SUBST(BUILD_WITH_LIBVIRT_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBVIRT_LIBS)
 fi
+if test "x$with_glib2" = "xyes"
+then
+	with_glib2_cflags="`$PKG_CONFIG --cflags glib-2.0`"
+	if test $? -ne 0
+	then
+		with_glib2="no"
+	fi
+	with_glib2_ldflags="`$PKG_CONFIG --libs glib-2.0`"
+	if test $? -ne 0
+	then
+		with_glib2="no"
+	fi
+fi
+if test "x$with_glib2" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_glib2_cflags"
+
+	AC_CHECK_HEADERS(glib.h, [],
+		      [with_glib2="no (glib.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_glib2" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CFLAGS="$CFLAGS $with_glib2_cflags"
+	LDFLAGS="$LDFLAGS $with_glib2_ldflags"
+
+	AC_CHECK_LIB(glib-2.0, g_hash_table_new,
+		     [with_glib2="yes"],
+		     [with_glib2="no (symbol g_hash_table_new not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+dnl Add the right compiler flags and libraries.
+if test "x$with_glib2" = "xyes"; then
+	BUILD_WITH_GLIB2_CFLAGS="$with_glib2_cflags"
+	BUILD_WITH_GLIB2_LIBS="$with_glib2_ldflags"
+	AC_SUBST(BUILD_WITH_GLIB2_CFLAGS)
+	AC_SUBST(BUILD_WITH_GLIB2_LIBS)
+fi
+
 # }}}
 
 # $PKG_CONFIG --exists OpenIPMIpthread {{{
@@ -5647,7 +5704,7 @@ then
 	plugin_users="yes"
 fi
 
-if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes"
+if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes" && test "x$with_glib2" = "xyes"
 then
 	plugin_virt="yes"
 fi
@@ -5997,6 +6054,7 @@ Configuration:
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
+    libglib2  . . . . . . $with_glib2
     libhal  . . . . . . . $with_libhal
     libhiredis  . . . . . $with_libhiredis
     libi2c-dev  . . . . . $with_libi2c
