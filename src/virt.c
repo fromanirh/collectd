@@ -328,10 +328,13 @@ static int
 virt2_dispatch_cpu (virt2_instance_t *inst, const VMInfo *vm)
 {
   value_t val;
+  value_t vals[2]; // TODO: magic number
+  vals[0].derive = vm->pcpu.user;
+  vals[1].derive = vm->pcpu.system;
+  virt2_submit (inst->conf, vm, "ps_cputime", "", vals, STATIC_ARRAY_SIZE (vals));
 
   val.derive = vm->info.cpuTime;
   virt2_submit (inst->conf, vm, "virt_cpu_total", "", &val, 1);
-  // TODO: cpu.user, cpu.sys, cpu.total
 
   for (size_t j = 0; j < vm->vcpu.nstats; j++)
   {
@@ -372,6 +375,16 @@ virt2_dispatch_memory (virt2_instance_t *inst, const VMInfo *vm)
 }
 
 static int
+virt2_dispatch_balloon (virt2_instance_t *inst, const VMInfo *vm)
+{
+  value_t vals[2];
+  vals[0].gauge = vm->balloon.current;
+  vals[1].gauge = vm->balloon.maximum;
+  virt2_submit (inst->conf, vm, "balloon_current", "", vals, STATIC_ARRAY_SIZE (vals));
+  return 0;
+}
+
+static int
 virt2_dispatch_block (virt2_instance_t *inst, const VMInfo *vm)
 {
   value_t vals[2];
@@ -392,6 +405,14 @@ virt2_dispatch_block (virt2_instance_t *inst, const VMInfo *vm)
     vals[0].derive = stats[j].rd_bytes;
     vals[1].derive = stats[j].wr_bytes;
     virt2_submit (inst->conf, vm, "disk_octets", name, vals, STATIC_ARRAY_SIZE (vals));
+
+    vals[0].derive = stats[j].rd_times;
+    vals[1].derive = stats[j].wr_times;
+    virt2_submit (inst->conf, vm, "disk_time", name, vals, STATIC_ARRAY_SIZE (vals));
+
+    vals[0].derive = stats[j].fl_reqs;
+    vals[1].derive = stats[j].fl_times;
+    virt2_submit (inst->conf, vm, "disk_flush", name, vals, STATIC_ARRAY_SIZE (vals));
   }
   return 0;
 }
@@ -606,6 +627,7 @@ virt2_dispatch_samples (virt2_instance_t *inst, virDomainStatsRecordPtr *records
 
     virt2_dispatch_cpu (inst, &vm);
     virt2_dispatch_memory (inst, &vm);
+    virt2_dispatch_balloon (inst, &vm);
     virt2_dispatch_block (inst, &vm);
     virt2_dispatch_iface (inst, &vm);
 
