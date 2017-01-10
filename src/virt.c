@@ -375,13 +375,33 @@ static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
                         const char *type_instance) {
   char subtype_instance[DATA_MAX_NAME_LEN];
 
-  if ((binfo->bi.rd_req != -1) && (binfo->bi.wr_req != -1))
+  if ((binfo->bi.rd_req != -1) && (binfo->bi.wr_req != -1)) {
     submit_derive2("disk_ops", (derive_t)binfo->bi.rd_req,
                    (derive_t)binfo->bi.wr_req, dom, type_instance);
 
-  if ((binfo->bi.rd_bytes != -1) && (binfo->bi.wr_bytes != -1))
+    ssnprintf(subtype_instance, sizeof(subtype_instance), "read-disk-%s",
+              type_instance);
+    submit(dom, "requests", subtype_instance,
+           &(value_t){.gauge = (gauge_t)binfo->bi.rd_req}, 1);
+    ssnprintf(subtype_instance, sizeof(subtype_instance), "write-disk-%s",
+              type_instance);
+    submit(dom, "requests", subtype_instance,
+           &(value_t){.gauge = (gauge_t)binfo->bi.wr_req}, 1);
+  }
+
+  if ((binfo->bi.rd_bytes != -1) && (binfo->bi.wr_bytes != -1)) {
     submit_derive2("disk_octets", (derive_t)binfo->bi.rd_bytes,
                    (derive_t)binfo->bi.wr_bytes, dom, type_instance);
+
+    ssnprintf(subtype_instance, sizeof(subtype_instance), "read-disk-%s",
+              type_instance);
+    submit(dom, "bytes", subtype_instance,
+           &(value_t){.gauge = (gauge_t)binfo->bi.rd_bytes}, 1);
+    ssnprintf(subtype_instance, sizeof(subtype_instance), "write-disk-%s",
+              type_instance);
+    submit(dom, "bytes", subtype_instance,
+           &(value_t){.gauge = (gauge_t)binfo->bi.wr_bytes}, 1);
+  }
 
   if ((binfo->rd_total_times != -1) && (binfo->wr_total_times != -1))
     submit_derive2("disk_time", (derive_t)binfo->rd_total_times,
